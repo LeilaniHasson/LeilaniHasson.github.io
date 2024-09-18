@@ -1,0 +1,3 @@
+This code simulates a simple combt on a 2D plane
+it is based off of how combat works in Dungeons and Dragons
+Players are guided through character creation and combat throught the game
