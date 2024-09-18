@@ -1,0 +1,65 @@
+/****
+declare a and b using global variable opperants
+
+int a = 10
+int b = 12
+
+if (a != b)
+{
+a=b;
+}
+else
+{
+a = 0;
+b = 0;
+}
+****/
+
+
+.global _start
+.data
+  a: .word 10
+  b: .word 12
+
+
+.text
+
+_start:
+push {ip, lr}
+
+  loadMemory:
+  // put location of a into 0
+  // put result of a into 1
+  ldr r0, =a
+  ldr r1, [r0]
+
+  // put location of b into 2
+  // put result of b into 3
+  ldr r2, =b
+  ldr r3, [r2]
+
+  if:
+  // compare a and b (r1, r3)
+  cmp r1, r3
+  beq else
+
+  body:
+    // make a = b, leave loop
+  mov r1, r3
+  b storeMemory
+
+  else:
+  // make both 0
+  mov r1, #0
+  mov r3, #0
+
+
+
+  storeMemory:
+  // load new r1 into a (loacation in r0)
+  str r1, [r0]
+
+  // lad new r3 into b (loacation in r2)
+  str r3, [r2]
+
+pop {ip, pc}

@@ -1,0 +1,47 @@
+/***
+int multiply(int a, int b) {
+  int prod = 0;
+
+  while (b > 0) {
+    prod += a;
+    b--;
+  }
+
+  return prod;
+  }
+
+int main() {
+  return multiply(11, 5);
+}
+***/
+
+
+.global _start
+.data
+  push {ip, lr}
+  multiply:
+  mov r0, #0
+
+    conditionW:
+    cmp r2, #0
+    ble endW
+
+    ifW:
+    add r0, r0, r1
+    sub r2, r2, #1
+    b conditionW
+
+    endW:
+  pop {ip, pc}
+
+
+
+.text
+_start:
+  push {ip, lr}
+  mov r1, #11
+  mov r2, #5
+
+  bl multiply
+
+  pop {ip, pc}

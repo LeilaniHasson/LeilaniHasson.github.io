@@ -1,0 +1,37 @@
+/****
+int a = 1;
+int b = 2;
+
+if (a != b) 
+{
+  a = b;
+} 
+else 
+{
+  b = a;
+}
+***/
+
+.global _start
+_start:
+  push {ip, lr}
+
+  // All of the translated code would go right here
+  mov r0, #1
+  mov r1, #2
+
+  //Translate if(a>b)
+  if:
+  cmp r0, r1
+  beq else
+
+  body:
+  mov r0, r1
+  b done
+
+  else:
+  mov r1, r0
+
+  done:
+  pop {ip, pc}
+

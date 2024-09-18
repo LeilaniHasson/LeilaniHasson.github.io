@@ -1,0 +1,42 @@
+/****
+int a = 1;
+int b = 2;
+
+if (a > 0) {
+  if (b < 0) {
+    a = 10;
+  }
+}
+
+return a + b;
+***/
+
+.global _start
+_start:
+  push {ip, lr}
+
+  // All of the translated code would go right here
+  mov r0, #1
+  mov r1, #2
+
+  //Translate if(a>b)
+  ifAg0:
+  cmp r0, #0
+  ble endifAg0
+
+  bodyAg0:
+    ifBg0:
+    cmp r1, #0
+    bge endifBg0
+
+    bodyBg0:
+    mov r0, #10// a = 0
+
+    endifBg0:
+
+  endifAg0:
+  add r0, r1, r0
+
+  done:
+  pop {ip, pc}
+

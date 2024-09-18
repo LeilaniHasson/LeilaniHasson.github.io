@@ -1,0 +1,30 @@
+/****
+for(int j = 9, j >= 0; j--)
+{
+}
+****/
+
+
+.global _start
+
+
+
+_start:
+push {ip, lr}
+
+// register 0 for j
+mov r0, #9
+
+	top:
+		while:
+		cmp r0, #0
+		blt done
+		
+		then:
+		//body
+		sub r0, r0, #1
+		// unconditional branch to top
+		b top
+  
+	done:	
+pop {ip, pc}

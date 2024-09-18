@@ -1,0 +1,62 @@
+/***
+int isNegative(int n) {
+  if (n > 0) {
+    return 0;
+  } else {
+    return 1;
+  }
+}
+
+int main() {
+  int x = -1;
+
+  // Think about calling isNegative, then using the result
+  // it returns as part of the if statement
+  if (isNegative(x)) {
+    x = -x;
+  }
+
+  return x;
+}
+***/
+
+
+.global _start
+.data
+  isNegative:
+    push {ip, lr}
+
+    conditions:
+    cmp r0, #0
+    ble else
+
+    if:
+    mov r1, #0
+    b end
+
+    else:
+    mov r1, #1
+
+    end:
+    pop {ip, pc}
+
+
+.text
+_start:
+  push {ip, lr}
+
+  mov r0, #-1
+
+  bl isNegative
+  condition:
+  cmp r1, #1
+  beq doneB
+
+  ifA:
+  mov r2, r0
+  sub r0, r0, r0
+  sub r0, r0, r2
+
+  doneB:
+
+  pop {ip, pc}
