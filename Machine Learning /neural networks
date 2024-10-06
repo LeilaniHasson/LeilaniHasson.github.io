@@ -1,0 +1,381 @@
+# Load the dataset from URL
+df <- read.csv("https://raw.githubusercontent.com/JaySquare87/DTA395-1Rollins/main/CodeProjects/RPG.csv", header = TRUE, sep = ",")
+
+# Code Project Starts Here.
+head(df)
+# Load necessary libraries
+
+# Load necessary libraries
+library(keras3)
+# Splitting the data into training and testing
+
+df$Class <- as.factor(df$Class)
+df$Class <- as.numeric(df$Class) - 1
+
+features <- as.matrix(df[, c("Armor", "Weapon", "Physical", "Magic")])
+labels <- to_categorical(df$Class)
+
+# Normalize the features
+mean <- apply(features, 2, mean)
+std <- apply(features, 2, sd)
+features <- scale(features, center = mean, scale = std)
+
+set.seed(123)  # for reproducibility
+indices <- sample(1:nrow(features), size = 0.8 * nrow(features))
+x_train <- features[indices,]
+y_train <- labels[indices,]
+x_test <- features[-indices,]
+y_test <- labels[-indices,]
+
+
+
+
+# Define the neural network model
+model <- keras_model_sequential() %>%
+  layer_dense(units = 16, activation = 'relu', input_shape = 4) %>%
+  layer_dropout(rate = 0.3) %>%
+  layer_dense(units = 8, activation = 'relu') %>%
+  layer_dropout(rate = 0.2) %>%
+  layer_dense(units = 6, activation = 'softmax')
+
+# Compile the model
+model %>% compile(
+  loss = 'categorical_crossentropy',
+  optimizer = optimizer_rmsprop(),
+  metrics = c('accuracy')
+)
+
+# Fit the model
+history <- model %>% fit(
+  x_train, y_train,
+  epochs = 50,
+  batch_size = 32,
+  validation_split = 0.2
+)
+
+# Evaluate the model
+score <- model %>% evaluate(x_test, y_test)
+cat('Test loss:', score$loss, '\n')
+cat('Test accuracy:', score$acc, '\n')
+
+# Predict classes
+predictions <- model %>% predict_classes(x_test)
+
+# Convert predictions for comparison
+predicted_classes <- max.col(predictions) - 1
+actual_classes <- max.col(y_test) - 1
+class_accuracy <- mean(predicted_classes == actual_classes)
+
+# Print accuracy
+print(class_accuracy)
+
+
+
+
+
+
+# Load the dataset from URL
+df <- read.csv("https://raw.githubusercontent.com/JaySquare87/DTA395-1Rollins/main/CodeProjects/RPG.csv", header = TRUE, sep = ",")
+
+# Code Project Starts Here.
+
+#==============================================================================
+
+# Load the necessary libraries
+library(tidyverse) # For data manipulation and visualization
+library(caret)     # For machine learning workflows
+library(nnet)      # For neural network models
+library(MASS)      # For LDA and QDA
+library(rpart)     # For CART decision trees
+library(C50)       # For C5.0 decision trees
+library(e1071)     # For SVM models
+
+# Check if any libraries are missing, and install them if they are
+necessary_packages <- c("tidyverse", "caret", "nnet", "MASS", "rpart", "C50", "e1071")
+
+new_packages <- necessary_packages[!(necessary_packages %in% installed.packages()[,"Package"])]
+if(length(new_packages)) install.packages(new_packages)
+
+# Now load the newly installed packages
+sapply(necessary_packages, require, character.only = TRUE)
+
+# Dataframe called data where FBoss is predicted based on predictors 'Armor',
+# 'Weapon', 'Physical', and 'Magic'
+data <- df
+
+# FBoss is the outcome variable and should be a factor with two levels.
+# Convert to yes and no
+df$FBoss <- as.factor(ifelse(df$FBoss == "True", "Yes", "No"))
+print(table(df$FBoss))
+
+# Check how many NAs are in FBoss
+sum(is.na(data$FBoss))
+
+# Split the data while maintaining class distribution
+set.seed(123)
+trainIndex <- createDataPartition(df$FBoss, p = .7, list = TRUE, times = 1)
+train_data <- df[trainIndex[[1]], ]
+test_data  <- df[-trainIndex[[1]], ]
+
+# Convert 'Class' to a factor
+train_data$Class <- as.factor(train_data$Class)
+test_data$Class <- as.factor(test_data$Class)
+
+# Check the distribution in the split data
+table(train_data$FBoss)
+table(test_data$FBoss)
+
+# Ensure scaled predictors are used in the logistic model for training
+train_data$Armor <- scale(train_data$Armor)
+train_data$Weapon <- scale(train_data$Weapon)
+train_data$Physical <- scale(train_data$Physical)
+train_data$Magic <- scale(train_data$Magic)
+
+test_data$Armor <- scale(test_data$Armor)
+test_data$Weapon <- scale(test_data$Weapon)
+test_data$Physical <- scale(test_data$Physical)
+test_data$Magic <- scale(test_data$Magic)
+
+
+# Fit the model with the training data
+logit_model <- glm(FBoss ~ Armor + Weapon + Physical + Magic, 
+                   data = train_data, 
+                   family = "binomial",
+                   control = list(maxit = 50))
+
+# Predict the probabilities on the test data
+test_data$prob <- predict(logit_model, newdata = test_data, type = "response")
+
+
+# Convert probabilities to predictions based on a threshold of 0.5
+test_data$pred <- ifelse(test_data$prob > 0.5, "Yes", "No")
+
+# Create a confusion matrix
+confusionMatrix <- table(predicted = test_data$pred, actual = test_data$FBoss)
+print(confusionMatrix)
+
+# Calculate the accuracy of the model
+logistic_accuracy_FBoss <- sum(diag(confusionMatrix)) / sum(confusionMatrix)
+print(paste("Accuracy:", logistic_accuracy_FBoss))
+
+# ==============================================================================
+# LDA for Class Prediction
+# ==============================================================================
+# Calculate the frequency and prior probabilities for 'Class'
+class_counts <- table(train_data$Class)
+class_priors <- class_counts / sum(class_counts)
+
+# Fit the LDA model to classify 'Class' based on features
+lda_model_class <- lda(Class ~ Armor + Weapon + Physical + Magic, 
+                       data = train_data, 
+                       prior = as.numeric(class_priors))
+
+# Predictions and evaluation for 'Class'
+test_data$lda_class_predictions <- predict(lda_model_class, newdata = test_data)$class
+class_confusion_matrix <- table(Predicted = test_data$lda_class_predictions, Actual = test_data$Class)
+lda_class_accuracy <- sum(diag(class_confusion_matrix)) / sum(class_confusion_matrix)
+print(paste("LDA Accuracy for Class:", lda_class_accuracy))
+
+# ==============================================================================
+# LDA for FBoss Prediction
+# ==============================================================================
+# Calculate the frequency and prior probabilities for 'FBoss'
+fboss_counts <- table(train_data$FBoss)
+fboss_priors <- fboss_counts / sum(fboss_counts)
+
+# Fit the LDA model to predict FBoss based on features
+lda_model_fboss <- lda(FBoss ~ Armor + Weapon + Physical + Magic, 
+                       data = train_data, 
+                       prior = as.numeric(fboss_priors))
+
+# Predictions and evaluation for 'FBoss'
+test_data$lda_fboss_predictions <- predict(lda_model_fboss, newdata = test_data)$class
+fboss_confusion_matrix <- table(Predicted = test_data$lda_fboss_predictions, Actual = test_data$FBoss)
+lda_fboss_accuracy <- sum(diag(fboss_confusion_matrix)) / sum(fboss_confusion_matrix)
+print(paste("LDA Accuracy for FBoss:", lda_fboss_accuracy))
+
+# ==============================================================================
+# QDA for Class Prediction
+# ==============================================================================
+# Fit the QDA model to classify 'Class' based on features
+qda_model_class <- qda(Class ~ Armor + Weapon + Physical + Magic, data = train_data)
+
+# Predict class labels on test data using the fitted QDA model
+test_data$qda_class_predictions <- predict(qda_model_class, newdata = test_data)$class
+
+# Create a confusion matrix for the Class predictions
+qda_confusion_matrix_class <- table(predicted = test_data$qda_class_predictions, actual = test_data$Class)
+print(qda_confusion_matrix_class)
+
+# Calculate the accuracy of the Class predictions
+qda_accuracy_class <- sum(diag(qda_confusion_matrix_class)) / sum(qda_confusion_matrix_class)
+print(paste("Accuracy from QDA model for Class prediction:", qda_accuracy_class))
+
+# ==============================================================================
+# QDA for FBoss Prediction
+# ==============================================================================
+# Fit the QDA model to predict FBoss based on features
+qda_model_fboss <- qda(FBoss ~ Armor + Weapon + Physical + Magic, data = train_data)
+
+# Predict FBoss labels on test data using the fitted QDA model
+test_data$qda_fboss_predictions <- predict(qda_model_fboss, newdata = test_data)$class
+
+# Create a confusion matrix for the FBoss predictions
+qda_confusion_matrix_fboss <- table(predicted = test_data$qda_fboss_predictions, actual = test_data$FBoss)
+print(qda_confusion_matrix_fboss)
+
+# Calculate the accuracy of the FBoss predictions
+qda_accuracy_fboss <- sum(diag(qda_confusion_matrix_fboss)) / sum(qda_confusion_matrix_fboss)
+print(paste("Accuracy from QDA model for FBoss prediction:", qda_accuracy_fboss))
+
+# ==============================================================================
+# Decision Tree (rpart) for Class Prediction
+# ==============================================================================
+# Fit the rpart Decision Tree model to classify 'Class' based on features
+rpart_model_class <- rpart(Class ~ Armor + Weapon + Physical + Magic, data = train_data)
+
+# Predict class labels on test data using the fitted Decision Tree model
+test_data$rpart_class_predictions <- predict(rpart_model_class, newdata = test_data, type = "class")
+
+# Create a confusion matrix for the Class predictions
+rpart_confusion_matrix_class <- table(predicted = test_data$rpart_class_predictions, actual = test_data$Class)
+print(rpart_confusion_matrix_class)
+
+# Calculate the accuracy of the Class predictions
+rpart_accuracy_class <- sum(diag(rpart_confusion_matrix_class)) / sum(rpart_confusion_matrix_class)
+print(paste("Accuracy from rpart model for Class prediction:", rpart_accuracy_class))                             
+
+# ==============================================================================
+# Decision Tree (rpart) for FBoss Prediction
+# ==============================================================================
+# Fit the rpart Decision Tree model to predict 'FBoss' based on features
+rpart_model_fboss <- rpart(FBoss ~ Armor + Weapon + Physical + Magic, data = train_data, method = "class")
+
+# Predict FBoss labels on test data using the fitted Decision Tree model
+test_data$rpart_fboss_predictions <- predict(rpart_model_fboss, newdata = test_data, type = "class")
+
+# Create a confusion matrix for the FBoss predictions
+rpart_confusion_matrix_fboss <- table(Predicted = test_data$rpart_fboss_predictions, Actual = test_data$FBoss)
+print(rpart_confusion_matrix_fboss)
+
+# Calculate the accuracy of the FBoss predictions
+rpart_accuracy_fboss <- sum(diag(rpart_confusion_matrix_fboss)) / sum(rpart_confusion_matrix_fboss)
+print(paste("Accuracy from rpart model for FBoss prediction:", rpart_accuracy_fboss))
+
+# ==============================================================================
+# C5.0 Decision Tree for Class Prediction
+# ==============================================================================
+# Fit the C5.0 Decision Tree model to classify 'Class' based on features
+c50_model_class <- C5.0(Class ~ Armor + Weapon + Physical + Magic, data = train_data)
+
+# Predict class labels on test data using the fitted C5.0 Decision Tree model
+test_data$c50_class_predictions <- predict(c50_model_class, newdata = test_data)
+
+# Create a confusion matrix for the Class predictions
+c50_confusion_matrix_class <- table(Predicted = test_data$c50_class_predictions, Actual = test_data$Class)
+print(c50_confusion_matrix_class)
+
+# Calculate the accuracy of the Class predictions
+c50_accuracy_class <- sum(diag(c50_confusion_matrix_class)) / sum(c50_confusion_matrix_class)
+print(paste("Accuracy from C5.0 model for Class prediction:", c50_accuracy_class))
+
+# ==============================================================================
+# C5.0 Decision Tree for FBoss Prediction
+# ==============================================================================
+# Fit the C5.0 Decision Tree model to predict 'FBoss' based on features
+c50_model_fboss <- C5.0(FBoss ~ Armor + Weapon + Physical + Magic, data = train_data)
+
+# Predict FBoss labels on test data using the fitted C5.0 Decision Tree model
+test_data$c50_fboss_predictions <- predict(c50_model_fboss, newdata = test_data)
+
+# Create a confusion matrix for the FBoss predictions
+c50_confusion_matrix_fboss <- table(Predicted = test_data$c50_fboss_predictions, Actual = test_data$FBoss)
+print(c50_confusion_matrix_fboss)
+
+# Calculate the accuracy of the FBoss predictions
+c50_accuracy_fboss <- sum(diag(c50_confusion_matrix_fboss)) / sum(c50_confusion_matrix_fboss)
+print(paste("Accuracy from C5.0 model for FBoss prediction:", c50_accuracy_fboss))
+
+# ==============================================================================
+# SVM for Class Prediction
+# ==============================================================================
+# Fit the SVM model to classify 'Class' based on features
+svm_model_class <- svm(Class ~ Armor + Weapon + Physical + Magic, data = train_data, kernel = "radial")
+
+# Predict class labels on test data using the fitted SVM model
+test_data$svm_class_predictions <- predict(svm_model_class, newdata = test_data)
+
+# Create a confusion matrix for the Class predictions
+svm_confusion_matrix_class <- table(Predicted = test_data$svm_class_predictions, Actual = test_data$Class)
+print(svm_confusion_matrix_class)
+
+# Calculate the accuracy of the Class predictions
+svm_accuracy_class <- sum(diag(svm_confusion_matrix_class)) / sum(svm_confusion_matrix_class)
+print(paste("Accuracy from SVM model for Class prediction:", svm_accuracy_class))
+
+# ==============================================================================
+# SVM for FBoss Prediction
+# ==============================================================================
+# Fit the SVM model to predict 'FBoss' based on features
+svm_model_fboss <- svm(FBoss ~ Armor + Weapon + Physical + Magic, data = train_data, kernel = "radial")
+
+# Predict FBoss labels on test data using the fitted SVM model
+test_data$svm_fboss_predictions <- predict(svm_model_fboss, newdata = test_data)
+
+# Create a confusion matrix for the FBoss predictions
+svm_confusion_matrix_fboss <- table(Predicted = test_data$svm_fboss_predictions, Actual = test_data$FBoss)
+print(svm_confusion_matrix_fboss)
+
+# Calculate the accuracy of the FBoss predictions
+svm_accuracy_fboss <- sum(diag(svm_confusion_matrix_fboss)) / sum(svm_confusion_matrix_fboss)
+print(paste("Accuracy from SVM model for FBoss prediction:", svm_accuracy_fboss))
+
+# ==============================================================================
+# Neural Network for Class Prediction
+# ==============================================================================
+# Fit the neural network model to classify 'Class' based on features
+nn_model_class <- nnet(Class ~ Armor + Weapon + Physical + Magic, data = train_data, size = 5, maxit = 1000)
+
+# Predict class labels on test data using the fitted neural network model
+test_data$nn_class_predictions <- predict(nn_model_class, newdata = test_data, type = "class")
+
+# Create a confusion matrix for the Class predictions
+nn_confusion_matrix_class <- table(Predicted = test_data$nn_class_predictions
+                                   , Actual = test_data$Class)
+print(nn_confusion_matrix_class)
+
+# Calculate the accuracy of the Class predictions
+nn_accuracy_class <- sum(diag(nn_confusion_matrix_class)) / sum(nn_confusion_matrix_class)
+print(paste("Accuracy from Neural Network model for Class prediction:", nn_accuracy_class))
+
+# ==============================================================================
+# Neural Network for FBoss Prediction
+# ==============================================================================
+# Fit the neural network model to predict 'FBoss' based on features
+nn_model_fboss <- nnet(FBoss ~ Armor + Weapon + Physical + Magic, data = train_data, size = 5, maxit = 1000)
+
+# Predict FBoss labels on test data using the fitted neural network model
+test_data$nn_fboss_predictions <- predict(nn_model_fboss, newdata = test_data, type = "class")
+
+# Create a confusion matrix for the FBoss predictions
+nn_confusion_matrix_fboss <- table(Predicted = test_data$nn_fboss_predictions
+                                   , Actual = test_data$FBoss)
+
+print(nn_confusion_matrix_fboss)
+
+# Calculate the accuracy of the FBoss predictions
+nn_accuracy_fboss <- sum(diag(nn_confusion_matrix_fboss)) / sum(nn_confusion_matrix_fboss)
+print(paste("Accuracy from Neural Network model for FBoss prediction:", nn_accuracy_fboss))
+
+# ==============================================================================
+# Create a table of model accuracies
+# ==============================================================================
+# Create a data frame with model names and their corresponding accuracies
+model_accuracies <- data.frame(
+  Model = c("Logistic Regression", "LDA", "QDA", "Decision Tree (rpart)", "Decision Tree (C5.0)", "SVM", "Neural Network"),
+  Accuracy_Class = c(NA, lda_class_accuracy, qda_accuracy_class, rpart_accuracy_class, c50_accuracy_class, svm_accuracy_class, nn_accuracy_class),
+  Accuracy_FBoss = c(logistic_accuracy_FBoss, lda_fboss_accuracy, qda_accuracy_fboss, rpart_accuracy_fboss, c50_accuracy_fboss, svm_accuracy_fboss, nn_accuracy_fboss)
+)
+
+# If you want to format it for Markdown or HTML, you can use the knitr package
+knitr::kable(model_accuracies, format = "markdown")
