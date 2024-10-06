@@ -1,0 +1,119 @@
+#load tidyverse
+library(tidyverse)
+install.packages("ISLR2")
+library(ISLR2)
+data(Auto)
+
+set.seed(1)
+N <- nrow(Auto)
+floor(0.4 * N)
+# --------------------------------
+
+accuracy_function <- function(training_percentage) {
+  N <- nrow(Auto)
+  accuracies <- c()
+  for (i in 1:1000) {
+    train <- sample(N, floor(training_percentage*N))
+    lm.fit <- lm(mpg ~ horsepower, data = Auto, subset = train)
+    if(training_percentage == 1) {
+      MSE <- mean((Auto$mpg - predict(lm.fit, Auto))^2)
+    } else {
+      MSE <- mean((Auto$mpg - predict(lm.fit, Auto))[-train]^2)
+    }
+    RSE <- sqrt((MSE * N) / (N - 2))
+    accuracy <- 1 - RSE / mean(Auto$mpg)
+    accuracies <- c(accuracies, accuracy)
+  }
+  return(accuracies)
+}
+
+
+
+test1 <- accuracy_function(0.3)
+test2 <- accuracy_function(0.5)
+test3 <- accuracy_function(0.9)
+
+tests <- c(rep('test1', 1000), rep('test2', 10000), rep('test3', 1000))
+df <- data.frame(tests, accuracy = c(test1, test2, test3))
+
+#Plot density
+ggplot(df, aes(x = accuracy, fill = tests)) +
+  geom_density(alpha = 0.5) +
+  labs(x = "Accuracy", y = "Density")
+
+var(test1)
+var(test2)
+var(test3)
+
+mean(test1)
+mean(test2)
+mean(test3)
+
+
+# load the iris dataset
+data(iris)
+
+iris_sub <- iris[iris$Species != "setosa",]
+
+# conver the species colum into a binary function
+iris_sub <- iris_sub |> mutate(Species = ifelse(Species == "virginica", 1, 0))
+
+
+irisTest1 <- get_accuracy(0.3)
+irisTest2 <- get_accuracy(0.5)
+irisTest3 <- get_accuracy(0.9)
+
+irisTests <- c(rep('irisTest1', 1000), rep('irisTest2', 10000), rep('irisTest3', 1000))
+irisdf <- data.frame(irisTests, accuracy = c(irisTest1, irisTest2, irisTest3))
+
+ggplot(irisdf, aes(x = accuracy, fill = irisTests)) +
+  geom_density(alpha = 0.5) +
+  labs(x = "Accuracy", y = "Density")
+
+var(test1)
+var(test2)
+var(test3)
+
+library(boot)
+# K FOLD
+# leave one out cross validation
+# glm = genralized linear model. can run on any set, no matter if it is linear or somehting else
+#glm.fit <- glm(mpg ~ horsepower, data = Auto, family = gaussian)
+glm.fit <- glm(mpg ~ poly(horsepower, 2), data = Auto, family = gaussian)
+
+# leave one out
+cv.glm(auto, glm.fit)
+cv.glmtest$delta
+
+# K fold
+cv.glmktest <- cv.glm(Auto, glm.fit, K=10)
+cv.glmktest$delta
+
+# BOOTSTRAPPING
+boot.fn <- function(data, intex){
+  return(coef(lm(mpg ~ horsepower, data = data, subset = index)))
+}
+
+boot.fn(Auto, 1:392)
+
+
+
+
+
+get_accuracy <- function(training_percentage) {
+  accuracies <- c()
+  for (i in 1:1000) {
+    train <- sample(N, floor(training_percentage*N))
+    glm.fit <- glm(Species ~ Sepal.Length, data = iris_sub, family = binomial, subset = train)
+    if(training_percentage == 1) {
+      accuracies <- c(accuracies, 
+                      mean((iris_sub$Species == ifelse(predict(glm.fit, iris_sub, type = "response") > 0.5, 1, 0))))
+    } else {
+      accuracies <- c(accuracies, 
+                      mean((iris_sub$Species == ifelse(predict(glm.fit, iris_sub, type = "response") > 0.5, 1, 0))[-train]))
+    }
+  }
+  return(accuracies)
+}
+
+# --------------------------------
