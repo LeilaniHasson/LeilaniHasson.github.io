@@ -1,0 +1,124 @@
+# Load required libraries
+install.packages("rpart")
+install.packages("rpart.plot")
+install.packages("C50")
+install.packages("e1071")
+
+library(rpart)
+library(rpart.plot)
+library(C50)
+library(e1071)
+
+# Load the dataset from URL
+df <- read.csv("https://raw.githubusercontent.com/JaySquare87/DTA395-1Rollins/main/CodeProjects/RPG.csv", header = TRUE, sep = ",")
+
+# Ensure Class column is set as a factor
+df$Class <- as.factor(df$Class)
+
+# Regression Tree using rpart to predict Level
+# Create the regression tree model
+rpart_model <- rpart(Level ~ Armor + Weapon + Physical + Magic, data = df)
+
+# Plot the regression tree
+rpart.plot(rpart_model)
+
+# Predict the Level of a character with given features
+new_data <- data.frame(Armor = 30, Weapon = 20, Physical = 20, Magic = 10)
+predicted_level <- predict(rpart_model, new_data)
+
+# Print the predicted level
+print(predicted_level)
+
+# Classification Model using rpart
+# Prepare the data
+df$Class <- as.factor(df$Class)
+df$Level <- NULL # We don't need Level for classification
+
+# Create the decision tree classification model
+rpart_class_model <- rpart(Class ~ Armor + Weapon + Physical + Magic, data = df, method = "class")
+
+# Plot the decision tree for classification
+rpart.plot(rpart_class_model)
+
+# Plot the decision boundaries using grid technique
+plot(rpart_class_model, uniform = TRUE)
+text(rpart_class_model, use.n = TRUE, all = TRUE, cex = 0.8)
+
+# Predict the class of grid points
+# (This step is not explicitly mentioned in the instructions, but is necessary to plot the boundaries)
+grid_points <- expand.grid(Armor = seq(min(df$Armor), max(df$Armor), length.out = 100),
+                           Weapon = seq(min(df$Weapon), max(df$Weapon), length.out = 100),
+                           Physical = seq(min(df$Physical), max(df$Physical), length.out = 100),
+                           Magic = seq(min(df$Magic), max(df$Magic), length.out = 100))
+predicted_classes <- predict(rpart_class_model, grid_points, type = "class")
+points(grid_points$Armor, grid_points$Weapon, col = predicted_classes, pch = ".", cex = 0.5)
+
+# Decision Tree using C50 library
+c50_model <- C5.0(Class ~ Armor + Weapon + Physical + Magic, data = df)
+
+# Plot the decision tree
+plot(c50_model)
+
+# Plot the decision boundaries using grid technique
+plot(c50_model, df)
+
+# SVM model
+svm_model <- svm(Class ~ Magic + Weapon, data = df, scale = TRUE)
+
+# Plot the SVM boundaries
+plot(svm_model, df)
+
+# Finding optimal cost and gamma
+tuned_params <- tune(svm, Class ~ Magic + Weapon, data = df, kernel = "radial",
+                     ranges = list(cost = c(0.1, 1, 10, 100, 1000, 10000), gamma = c(0.5, 1, 2, 3, 4)), scale = TRUE)
+
+# Get optimal cost and gamma
+optimal_cost <- tuned_params$best.parameters$cost
+optimal_gamma <- tuned_params$best.parameters$gamma
+
+# Create new SVM with optimal parameters
+svm_optimal_model <- svm(Class ~ Magic + Weapon, data = df, kernel = "radial", cost = optimal_cost, gamma = optimal_gamma, scale = TRUE)
+
+# Plot the optimized SVM boundaries
+plot(svm_optimal_model, df)
+
+
+Extra Work:
+  
+  
+library(MASS)
+
+# Create LDM model
+ldm_model <- lda(Class ~ Armor + Weapon + Physical + Magic, data = df)
+
+# Create QDM model
+qdm_model <- qda(Class ~ Armor + Weapon + Physical + Magic, data = df)
+
+# Create SVM model with Armor, Weapon, Physical, and Magic columns
+svm_model_extra <- svm(Class ~ Armor + Weapon + Physical + Magic, data = df, scale = TRUE)
+
+# Predict using LDM, QDM, and SVM models
+predictions_ldm <- predict(ldm_model, df)$class
+predictions_qdm <- predict(qdm_model, df)$class
+predictions_svm <- predict(svm_model_extra, df)$class
+
+# Calculate accuracy for LDM, QDM, and SVM models
+accuracy_ldm <- mean(predictions_ldm == df$Class)
+accuracy_qdm <- mean(predictions_qdm == df$Class)
+accuracy_svm <- mean(predictions_svm == df$Class)
+
+# Print accuracies
+cat("Accuracy of Linear Discriminant Model (LDM):", accuracy_ldm, "\n")
+cat("Accuracy of Quadratic Discriminant Model (QDM):", accuracy_qdm, "\n")
+cat("Accuracy of SVM model (using Armor, Weapon, Physical, and Magic):", accuracy_svm, "\n")
+
+# Check accuracy of rpart model
+predictions_rpart <- predict(rpart_class_model, df, type = "class")
+accuracy_rpart <- mean(predictions_rpart == df$Class)
+cat("Accuracy of rpart model:", accuracy_rpart, "\n")
+
+# Check accuracy of C50 model
+predictions_c50 <- predict(c50_model, df)
+accuracy_c50 <- mean(predictions_c50 == df$Class)
+cat("Accuracy of C50 model:", accuracy_c50, "\n")
+
